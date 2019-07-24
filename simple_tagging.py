@@ -4,8 +4,11 @@ Simple tagging system.
 WIP
 """
 
-import sqlite3
+import argparse
 import hashlib
+import os
+import sqlite3
+import sys
 
 
 def create_tag_table(conn=None):
@@ -84,6 +87,16 @@ def tagid_from_tagname(name, conn=None):
     v = c.fetchone()
     return v[0]
 
+def describe_entry(entry, conn=None):
+    c = conn.cursor()
+    c.execute('SELECT name, description FROM entry_table WHERE name=?', (entry, ))
+    tags = tags_for_entry(entry, conn=conn)
+    res = c.fetchone()
+    if not res:
+        return
+    name, description = res
+    print_description(name, description, tags)
+
 def tag_entry(entry, tag, conn=None):
     c = conn.cursor()
     entryid = entryid_from_entryname(entry)
@@ -119,3 +132,59 @@ def update_tag_desc(tag, description, conn=None):
     c = conn.cursor()
     c.execute('UPDATE tag_table SET description = ? WHERE name = ?',
               (description, tag))
+
+
+def _build_parser():
+    usage = "%(prog)s [--dir DIR] [--db DB] [options] [TEXT]"
+    epilog = (
+        "Author: David Lowry-Duda <david@lowryduda.com>."
+        "\nPlease report any bugs to https://github.com/davidlowryduda/taggerpy"
+    )
+    parser = argparse.ArgumentParser(usage=usage, epilog=epilog)
+    parser.add_argument("text", nargs='*', metavar="TEXT")
+
+    actions = parser.add_argument_group(
+        'Actions',
+        "If no actions are specified, print the description of entry given by TEXT."
+    )
+    actions.add_argument("-a", "--add",
+                         dest="add_entry_name", default="",
+                         help="add ENTRY with description given by TEXT",
+                         metavar="ENTRY")
+
+
+    config = parser.add_argument_group("Configuration Options")
+    config.add_argument("--dir",
+                        dest="dbdir", default=".",
+                        help="Use database in DIR",
+                        metavar="DIR")
+    config.add_argument("--db",
+                        dest="dbname", default="tagpy.db",
+                        help="Use database DB", metavar="DB")
+
+    return parser
+
+
+def main(input_args=None):
+    args = _build_parser().parse_args(args=input_args)
+
+    dbdir = os.path.expanduser(args.dbdir)
+    dbname = args.dbname
+    path = os.path.join(os.path.realpath(dbdir), dbname)
+    if os.path.isdir(path):
+        raise IOError("Invalid database file. File is a directory.")
+
+
+    text = ' '.join(args.text).strip()
+
+    if args.add_entry_name:
+        add_entry(args.add_entry_name, description=text, conn=conn)
+    else:
+        if text:
+            describe_entry(text, conn=conn)
+        else:
+            _build_parser().print_help()
+
+
+if __name__ == "__main__":
+    main()
