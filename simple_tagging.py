@@ -8,9 +8,7 @@ import sqlite3
 import hashlib
 
 
-CONNDB = sqlite3.connect('tester.db')
-
-def create_tag_table(conn=CONNDB):
+def create_tag_table(conn=None):
     c = conn.cursor()
     c.execute(
         'CREATE TABLE IF NOT EXISTS tag_table'
@@ -22,7 +20,7 @@ def create_tag_table(conn=CONNDB):
     )
     conn.commit()
 
-def create_entry_table(conn=CONNDB):
+def create_entry_table(conn=None):
     c = conn.cursor()
     c.execute(
         'CREATE TABLE IF NOT EXISTS entry_table'
@@ -35,7 +33,7 @@ def create_entry_table(conn=CONNDB):
     )
     conn.commit()
 
-def create_mapping_table(conn=CONNDB):
+def create_mapping_table(conn=None):
     c = conn.cursor()
     c.execute(
         'CREATE TABLE IF NOT EXISTS mapping_table'
@@ -56,9 +54,9 @@ def md5(filename):
     return int(hash_md5.hexdigest(), 16)
 
 
-def add_entry(name, description='', conn=CONNDB):
+def add_entry(name, description='', conn=None):
     c = conn.cursor()
-    filehash = md5(name) % 2**64
+    filehash = md5(name) % 2**32
     c.execute(
         'INSERT INTO entry_table (name, hash, description) '
         'VALUES (?, ?, ?)', (name, filehash, description)
@@ -66,7 +64,7 @@ def add_entry(name, description='', conn=CONNDB):
     conn.commit()
 
 
-def add_tag(name, description='', conn=CONNDB):
+def add_tag(name, description='', conn=None):
     c = conn.cursor()
     c.execute(
         'INSERT INTO tag_table (name, description) '
@@ -74,36 +72,36 @@ def add_tag(name, description='', conn=CONNDB):
     )
     conn.commit()
 
-def entryid_from_entryname(name, conn=CONNDB):
+def entryid_from_entryname(name, conn=None):
     c = conn.cursor()
     c.execute('SELECT entry_id FROM entry_table WHERE name=?', (name, ))
     v = c.fetchone()
     return v[0]
 
-def tagid_from_tagname(name, conn=CONNDB):
+def tagid_from_tagname(name, conn=None):
     c = conn.cursor()
     c.execute('SELECT tag_id FROM tag_table WHERE name=?', (name, ))
     v = c.fetchone()
     return v[0]
 
-def tag_entry(entry, tag, conn=CONNDB):
+def tag_entry(entry, tag, conn=None):
     c = conn.cursor()
     entryid = entryid_from_entryname(entry)
     tagid = tagid_from_tagname(tag)
     c.execute('INSERT INTO mapping_table (entry_reference, tag_reference) VALUES (?, ?)', (entryid, tagid))
     conn.commit()
 
-def remove_entry(name, conn=CONNDB):
+def remove_entry(name, conn=None):
     c = conn.cursor()
-    c.execute('DELETE FROM entry_table WHERE name=?', name)
+    c.execute('DELETE FROM entry_table WHERE name=?', (name, ))
     conn.commit()
 
-def remove_tag(name, conn=CONNDB):
+def remove_tag(name, conn=None):
     c = conn.cursor()
-    c.execute('DELETE FROM tag_table WHERE name=?', name)
+    c.execute('DELETE FROM tag_table WHERE name=?', (name, ))
     conn.commit()
 
-def untag_entry(entry, tag, conn=CONNDB):
+def untag_entry(entry, tag, conn=None):
     c = conn.cursor()
     entryid = entryid_from_entryname(entry)
     tagid = tagid_from_tagname(tag)
@@ -111,19 +109,13 @@ def untag_entry(entry, tag, conn=CONNDB):
               (entryid, tagid))
     conn.commit()
 
-def update_entry_desc(entry, description, conn=CONNDB):
+def update_entry_desc(entry, description, conn=None):
     c = conn.cursor()
     c.execute('UPDATE entry_table SET description = ? WHERE name = ?',
               (description, entry))
     conn.commit()
 
-def update_tag_desc(tag, description, conn=CONNDB):
+def update_tag_desc(tag, description, conn=None):
     c = conn.cursor()
     c.execute('UPDATE tag_table SET description = ? WHERE name = ?',
               (description, tag))
-
-#add_entry("testfile", description="a test file for testing purposes")
-#add_tag("testtag", description="the test tag is a silly testing tag")
-#entryid_from_entryname("testfile")
-#tagid_from_tagname("testtag")
-#tag_entry("testfile", "testtag")
