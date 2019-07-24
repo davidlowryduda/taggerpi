@@ -1,8 +1,46 @@
 """
-Simple tagging system.
+simple_tagging.py --- a simple tagging system
 
-WIP
+simple_tagging.py is a tool for annotating files (or precise topics) in a
+database, but within the simplest possible way.
+
+Right now, simple_tagging.py is a work in progress. It is just useful enough to
+perform its most basic functionality.
+
+
+Author Info
+-----------
+
+This tool was written by David Lowry-Duda <david@lowryduda.com>.
+
+
+License Info
+------------
+
+This is released under the MIT License.
+
+
+Copyright (c) 2019 David Lowry-Duda <david@lowryduda.com>.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 """
+
 
 import argparse
 import hashlib
@@ -11,21 +49,23 @@ import sqlite3
 import sys
 
 
-def create_tag_table(conn=None):
-    c = conn.cursor()
-    c.execute(
-        'CREATE TABLE IF NOT EXISTS tag_table'
-        '( '
-        'tag_id INTEGER PRIMARY KEY, '
-        'name STRING NOT NULL UNIQUE, '
-        'description STRING'
-        ');'
-    )
-    conn.commit()
-
 def create_entry_table(conn=None):
-    c = conn.cursor()
-    c.execute(
+    """
+    Create entry_table (if it doesn't exist) in sqlite db connection `conn`.
+
+    The entry_table has the following schema:
+
+        :entry_table:
+        entry_id     INTEGER  PRIMARY KEY
+        name         STRING   UNIQUE
+        hash         INTEGER
+        description  STRING
+
+    The string and hash cannot be empty. The hash is an md5 of the contents of
+    the file (or a default value if it is not a file).
+    """
+    cursor = conn.cursor()
+    cursor.execute(
         'CREATE TABLE IF NOT EXISTS entry_table'
         '( '
         'entry_id INTEGER PRIMARY KEY, '
@@ -36,24 +76,73 @@ def create_entry_table(conn=None):
     )
     conn.commit()
 
+
+def create_tag_table(conn=None):
+    """
+    Create tag_table (if it doesn't exist) in sqlite db connection `conn`.
+
+    The tag_table has the following schema:
+
+        :tag_table:
+        tag_id       INTEGER  PRIMARY KEY
+        name         STRING   UNIQUE
+        description  STRING
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        'CREATE TABLE IF NOT EXISTS tag_table'
+        '( '
+        'tag_id INTEGER PRIMARY KEY, '
+        'name STRING NOT NULL UNIQUE, '
+        'description STRING'
+        ');'
+    )
+    conn.commit()
+
+
 def create_mapping_table(conn=None):
-    c = conn.cursor()
-    c.execute(
+    """
+    Creat mapping_table (if it doesn't exist) in sqlite db connection `conn`.
+
+    The mapping_table has the following schema:
+
+        :mapping_table:
+        entry_reference  INTEGER
+        tag_reference    INTEGER
+
+    The mapping_table is a basic associative table holding relationships between
+    entries and tags. An entry_reference is an integer holding the entry_id of
+    an entry in the entry_table, and a tag_reference is an integer holding the
+    tag_id of an entry in the tag_table. (These are enforced by the database,
+    with cascading changes on update and delete).
+    """
+    cursor = conn.cursor()
+    cursor.execute(
         'CREATE TABLE IF NOT EXISTS mapping_table'
         '( '
-        'entry_reference INTEGER REFERENCES entry_table(entry_id) ON UPDATE CASCADE ON DELETE CASCADE, '
-        'tag_reference INTEGER REFERENCES tag_table(tag_id) ON UPDATE CASCADE ON DELETE CASCADE, '
+        'entry_reference INTEGER REFERENCES entry_table(entry_id)'
+        ' ON UPDATE CASCADE ON DELETE CASCADE, '
+        'tag_reference INTEGER REFERENCES tag_table(tag_id)'
+        ' ON UPDATE CASCADE ON DELETE CASCADE, '
         'UNIQUE (entry_reference, tag_reference) '
         ');'
     )
     conn.commit()
 
+
 def initialize_db(conn=None):
+    """
+    Set up three tables (if they don't exist) in sqlite db connection `conn`.
+
+    This should only be called when the database needs to be created for the
+    first time.
+    """
     print("Creating database...")
     create_tag_table(conn=conn)
     create_entry_table(conn=conn)
     create_mapping_table(conn=conn)
     print("Done.")
+
 
 def md5(filename):
     hash_md5 = hashlib.md5()
