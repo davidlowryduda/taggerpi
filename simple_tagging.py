@@ -204,7 +204,30 @@ def _build_parser():
                          dest="add_entry_name", default="",
                          help="add ENTRY with description given by TEXT",
                          metavar="ENTRY")
-
+    actions.add_argument("--add-tag",
+                         dest="add_tag_name", default="",
+                         help="add TAG with description given by TEXT",
+                         metavar="TAG")
+    actions.add_argument("--tag-entry",
+                         dest="tag_entry_tag", default="",
+                         help="add TAG to entry specified by TEXT",
+                         metavar="TAG")
+    actions.add_argument("--list-entries",
+                         dest="list_entries", default=False,
+                         action="store_true",
+                         help="List all entries known to database. This might be large.")
+    actions.add_argument("--list-tags",
+                         dest="list_tags", default=False,
+                         action="store_true",
+                         help="List all tags known to database. This might be large.")
+    actions.add_argument("--tag-info",
+                         dest="tag_info", default="",
+                         help="Print description for TAG.",
+                         metavar="TAG")
+    actions.add_argument("--remove-tag",
+                         dest="remove_tag", default="",
+                         help="Remove TAG.",
+                         metavar="TAG")
 
     config = parser.add_argument_group("Configuration Options")
     config.add_argument("--dir",
@@ -214,7 +237,10 @@ def _build_parser():
     config.add_argument("--db",
                         dest="dbname", default="tagpy.db",
                         help="Use database DB", metavar="DB")
-
+    config.add_argument("--stdin",
+                        dest="stdin", default=False,
+                        action="store_true",
+                        help="Read TEXT from stdin.")
     return parser
 
 
@@ -235,9 +261,23 @@ def main(input_args=None):
         conn = sqlite3.connect(path)
 
     text = ' '.join(args.text).strip()
+    if args.stdin:
+        text = ''.join(sys.stdin.readlines()).strip()
 
     if args.add_entry_name:
         add_entry(args.add_entry_name, description=text, conn=conn)
+    elif args.add_tag_name:
+        add_tag(args.add_tag_name, description=text, conn=conn)
+    elif args.tag_entry_tag:
+        tag_entry(text, args.tag_entry_tag, conn=conn)
+    elif args.list_entries:
+        list_all_entries(conn=conn)
+    elif args.list_tags:
+        list_all_tags(conn=conn)
+    elif args.tag_info:
+        describe_tag(args.tag_info, conn=conn)
+    elif args.remove_tag:
+        remove_tag(args.remove_tag, conn=conn)
     else:
         if text:
             describe_entry(text, conn=conn)
