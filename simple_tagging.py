@@ -48,6 +48,12 @@ def create_mapping_table(conn=None):
     )
     conn.commit()
 
+def initialize_db(conn=None):
+    print("Creating database...")
+    create_tag_table(conn=conn)
+    create_entry_table(conn=conn)
+    create_mapping_table(conn=conn)
+    print("Done.")
 
 def md5(filename):
     hash_md5 = hashlib.md5()
@@ -87,6 +93,17 @@ def tagid_from_tagname(name, conn=None):
     v = c.fetchone()
     return v[0]
 
+def tags_for_entry(entry, conn=None):
+    c = conn.cursor()
+    entryid = entryid_from_entryname(entry, conn=conn)
+    c.execute('SELECT tag_reference FROM mapping_table WHERE entry_reference=?', (entryid, ))
+    taglist = []
+    for res in c.fetchall():
+        cursor2 = conn.cursor()
+        cursor2.execute('SELECT name FROM tag_table WHERE tag_id=?', (int(res[0]), ))
+        taglist.append(cursor2.fetchone()[0])
+    return taglist
+
 def describe_entry(entry, conn=None):
     c = conn.cursor()
     c.execute('SELECT name, description FROM entry_table WHERE name=?', (entry, ))
@@ -97,10 +114,42 @@ def describe_entry(entry, conn=None):
     name, description = res
     print_description(name, description, tags)
 
+def describe_tag(tag, conn=None):
+    c = conn.cursor()
+    c.execute('SELECT name, description FROM tag_table WHERE name=?', (tag, ))
+    res = c.fetchone()
+    if not res:
+        return
+    name, description = res
+    print_description(name, description, [])
+
+def list_all_entries(conn=None):
+    c = conn.cursor()
+    print("Known entries:")
+    for res in c.execute('SELECT entry_id, name FROM entry_table'):
+        print("  {}".format(res[1]))
+        #print("  id: {}   entry: {}".format(*res))
+
+def list_all_tags(conn=None):
+    c = conn.cursor()
+    print("Known tags:")
+    for res in c.execute('SELECT name FROM tag_table'):
+        print("  {}".format(res[0]))
+
+def print_description(name, description, tags):
+    tagstring = ", ".join(tags)
+    if tagstring:
+        tagstring = "| tags: " + tagstring
+    print("")
+    print("# {} {}".format(name, tagstring))
+    print("")
+    print("  {}".format(description))
+    print("")
+
 def tag_entry(entry, tag, conn=None):
     c = conn.cursor()
-    entryid = entryid_from_entryname(entry)
-    tagid = tagid_from_tagname(tag)
+    entryid = entryid_from_entryname(entry, conn=conn)
+    tagid = tagid_from_tagname(tag, conn=conn)
     c.execute('INSERT INTO mapping_table (entry_reference, tag_reference) VALUES (?, ?)', (entryid, tagid))
     conn.commit()
 
@@ -174,6 +223,12 @@ def main(input_args=None):
     if os.path.isdir(path):
         raise IOError("Invalid database file. File is a directory.")
 
+    # repeat conn because sqlite3.connect creates a file if it doesn't exist.
+    if not os.path.isfile(path):
+        conn = sqlite3.connect(path)
+        initialize_db(conn)
+    else:
+        conn = sqlite3.connect(path)
 
     text = ' '.join(args.text).strip()
 
