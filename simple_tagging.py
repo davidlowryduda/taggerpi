@@ -57,10 +57,14 @@ def initialize_db(conn=None):
 
 def md5(filename):
     hash_md5 = hashlib.md5()
-    with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return int(hash_md5.hexdigest(), 16)
+    try:
+        with open(filename, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return int(hash_md5.hexdigest(), 16)
+    except FileNotFoundError:
+        print("File {} not found. Using default hash value.".format(filename))
+        return 1
 
 
 def add_entry(name, description='', conn=None):
