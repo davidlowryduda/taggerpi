@@ -227,7 +227,7 @@ def list_all_tags(conn=None):
     c = conn.cursor()
     print("Known tags:")
     for res in c.execute('SELECT name FROM tag_table'):
-        print("  {}".format(res[0]))
+        print("  {}".format(res[1]))
 
 def print_description(name, description, tags):
     tagstring = ", ".join(tags)
